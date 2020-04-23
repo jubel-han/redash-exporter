@@ -26,7 +26,7 @@ func TestGetResponse(t *testing.T) {
 	}
 
 	isFresh, err := isQueryResultFresh(result.RetrievedAt)
-	logPanic(err)
+	logIf(err)
 
 	if isFresh {
 		fmt.Print("redash query is fresh")

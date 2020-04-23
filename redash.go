@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Alert struct {
@@ -41,20 +43,21 @@ var (
 	ErrGetQueryFailed       = errors.New("get query failed")
 	ErrGetQueryResultFailed = errors.New("get query result failed")
 	ErrGetAlertFailed       = errors.New("get alert failed")
+	ErrQueryOutOfDate       = errors.New("query result is out-of-date")
 )
 
 func getQuery(id int) (Query, error) {
 	url := fmt.Sprintf("%s/%d", queryAPI, id)
 
 	bodyBytes, err := redashRequest("GET", url)
-	logPanic(err)
+	logIf(err)
 
 	query := Query{}
 	err = json.Unmarshal(bodyBytes, &query)
-	logPanic(err)
+	logIf(err)
 
 	if query.ID != id {
-		fmt.Printf("query id %d not equals to %d.\n", query.ID, id)
+		log.Error("query id %d not equals to %d.\n", query.ID, id)
 		err = ErrGetQueryFailed
 	}
 	return query, err
@@ -64,14 +67,14 @@ func getQueryResult(id int) (QueryResultDetail, error) {
 	url := fmt.Sprintf("%s/%d", queryResualtAPI, id)
 
 	bodyBytes, err := redashRequest("GET", url)
-	logPanic(err)
+	logIf(err)
 
 	result := QueryResult{}
 	err = json.Unmarshal(bodyBytes, &result)
-	logPanic(err)
+	logIf(err)
 
 	if result.Detail.ID != id {
-		fmt.Printf("query result id %d not equals to %d.\n", result.Detail.ID, id)
+		log.Error("query result id %d not equals to %d.\n", result.Detail.ID, id)
 		err = ErrGetQueryResultFailed
 	}
 	return result.Detail, err
@@ -81,26 +84,31 @@ func getAlert(id int) (Alert, error) {
 	url := fmt.Sprintf("%s/%d", alertAPI, id)
 
 	bodyBytes, err := redashRequest("GET", url)
-	logPanic(err)
+	logIf(err)
 
 	alert := Alert{}
 	err = json.Unmarshal(bodyBytes, &alert)
-	logPanic(err)
+	logIf(err)
 
 	if alert.ID != id {
-		fmt.Printf("alert id %d not equals to %d.\n", alert.ID, id)
+		log.Errorf("alert id %d not equals to %d.\n", alert.ID, id)
 		err = ErrGetAlertFailed
 	}
 	return alert, err
 }
 
 func isQueryResultFresh(executedAt string) (bool, error) {
-	executedAtTime, _ := time.Parse(time.RFC3339, executedAt)
-	var err error
+	executedAtTime, err := time.Parse(time.RFC3339, executedAt)
+	logIf(err)
+
+	interval, err := time.ParseDuration(*RedashProbeInterval)
+	logIf(err)
+
 	now := time.Now().UTC()
-	lastInterval := now.Add(-10 * time.Minute)
-	if executedAtTime.Before(lastInterval) {
-		return false, errors.New("alert out of date: 5 mins older")
+	lastExecutedTime := now.Add(-interval)
+
+	if executedAtTime.Before(lastExecutedTime) {
+		return false, ErrQueryOutOfDate
 	}
 	return true, err
 }
@@ -114,17 +122,20 @@ func isAlertTriggered(status string) bool {
 
 func redashRequest(method string, url string) ([]byte, error) {
 	req, err := http.NewRequest(method, url, nil)
-	logPanic(err)
+	logIf(err)
 
 	authHeaderValue := fmt.Sprintf("Key %s", *RedashAPIKey)
 	req.Header.Add("Authorization", authHeaderValue)
 
 	resp, err := client.Do(req)
-	logPanic(err)
+	logIf(err)
+	log.Infof("[%d] %s", resp.StatusCode, req.URL)
+
 	defer resp.Body.Close()
+	log.Debugf("response body: %s\n", resp.StatusCode, resp.Body)
 
 	bytes, err := ioutil.ReadAll(resp.Body)
-	logPanic(err)
+	logIf(err)
 
 	return bytes, err
 }

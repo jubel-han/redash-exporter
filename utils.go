@@ -1,9 +1,9 @@
 package main
 
 import (
-	"strconv"
-	"fmt"
+	"log"
 	"os"
+	"strconv"
 )
 
 func getEnv(key string, defaultVal string) string {
@@ -22,9 +22,8 @@ func getEnvInt(key string, defaultVal int) int {
 	return defaultVal
 }
 
-func logPanic(err error) {
+func logIf(err error) {
 	if err != nil {
-		fmt.Print(err)
-		panic(err)
+		log.Fatal(err)
 	}
 }
