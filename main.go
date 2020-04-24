@@ -5,6 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 )
 
@@ -43,6 +44,8 @@ func main() {
 	reg.MustRegister(RedashCollector)
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	http.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) { io.WriteString(w, "ok") })
+
 	log.Infof("redash exporter started and listening on %s.", *ListenAddr)
-	http.ListenAndServe(*ListenAddr, nil)
+	log.Fatal(http.ListenAndServe(*ListenAddr, nil))
 }

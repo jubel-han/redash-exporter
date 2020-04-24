@@ -57,7 +57,7 @@ func getQuery(id int) (Query, error) {
 	logIf(err)
 
 	if query.ID != id {
-		log.Error("query id %d not equals to %d.\n", query.ID, id)
+		log.Errorf("query id %d not equals to %d.\n", query.ID, id)
 		err = ErrGetQueryFailed
 	}
 	return query, err
@@ -74,7 +74,7 @@ func getQueryResult(id int) (QueryResultDetail, error) {
 	logIf(err)
 
 	if result.Detail.ID != id {
-		log.Error("query result id %d not equals to %d.\n", result.Detail.ID, id)
+		log.Errorf("query result id %d not equals to %d.\n", result.Detail.ID, id)
 		err = ErrGetQueryResultFailed
 	}
 	return result.Detail, err
